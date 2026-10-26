@@ -4,13 +4,34 @@
 <base target="_top">
 <meta name="color-scheme" content="light dark">
 <style>
-  :root { --bg:#f5f6f8; --card:#fff; --text:#1c1e21; --muted:#6b7280; --line:#e5e7eb; --accent:#2563eb; --good:#15803d; --bad:#b91c1c; }
+  :root {
+    --bg:#f5f6f8; --card:#fff; --text:#1c1e21; --muted:#6b7280; --line:#e5e7eb; --accent:#2563eb; --good:#15803d; --bad:#b91c1c;
+    --p1:#2a78d6; --p2:#eb6834; --bar:#1baf7a; --track:#eceef1;
+  }
   @media (prefers-color-scheme: dark) {
-    :root { --bg:#111317; --card:#1b1e24; --text:#eceef1; --muted:#9aa1ad; --line:#2b2f37; --accent:#5b8def; --good:#4ade80; --bad:#f87171; }
+    :root {
+      --bg:#111317; --card:#1b1e24; --text:#eceef1; --muted:#9aa1ad; --line:#2b2f37; --accent:#5b8def; --good:#4ade80; --bad:#f87171;
+      --p1:#3987e5; --p2:#d95926; --bar:#199e70; --track:#262a32;
+    }
   }
   * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.4 -apple-system,system-ui,Roboto,sans-serif; padding:16px; padding-bottom:40px; }
-  main { max-width:520px; margin:0 auto; display:grid; gap:14px; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.4 -apple-system,system-ui,Roboto,sans-serif; }
+  main { max-width:520px; margin:0 auto; display:grid; gap:14px; padding:14px 16px 40px; }
+  [hidden] { display:none !important; }
+
+  /* top bar + menu */
+  .bar { position:sticky; top:0; z-index:5; background:var(--bg); border-bottom:1px solid var(--line); padding-top:env(safe-area-inset-top); }
+  .bar div { max-width:520px; margin:0 auto; display:flex; align-items:center; gap:6px; padding:6px 8px; }
+  .bar h1 { margin:0; font-size:1.1rem; }
+  .burger { border:0; background:none; color:var(--text); font-size:1.6rem; line-height:1; padding:8px 12px; border-radius:10px; }
+  .scrim { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9; }
+  .drawer { position:fixed; top:0; bottom:0; left:0; width:min(280px,82vw); background:var(--card); z-index:10; padding:calc(16px + env(safe-area-inset-top)) 12px 16px; display:flex; flex-direction:column; gap:4px; box-shadow:2px 0 18px rgba(0,0,0,.25); }
+  .drawer h2 { margin:0 8px 10px; font-size:1.1rem; }
+  .drawer button { text-align:left; border:0; background:none; color:var(--text); font-size:1rem; padding:13px 12px; border-radius:10px; }
+  .drawer button.on { background:var(--bg); font-weight:600; color:var(--accent); }
+  .drawer hr { width:100%; border:0; border-top:1px solid var(--line); margin:8px 0; }
+  .drawer .warn { color:var(--bad); }
+
   .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; }
   .hero { text-align:center; padding:24px 16px; }
   .hero .big { font-size:2.2rem; font-weight:700; margin:4px 0; }
@@ -32,14 +53,67 @@
   .row .amt { font-weight:600; }
   .x { border:0; background:none; color:var(--muted); font-size:1.2rem; padding:6px 10px; }
   .danger { width:100%; padding:12px; font-size:.95rem; border:1px solid var(--bad); border-radius:10px; background:none; color:var(--bad); }
-  [hidden] { display:none !important; }
   .hint { color:var(--muted); font-size:.9rem; margin:0 0 4px; }
   .link { width:100%; margin-top:12px; padding:10px; border:0; background:none; color:var(--accent); font-size:.95rem; }
   .empty { color:var(--muted); text-align:center; padding:8px 0; }
   .err { color:var(--bad); font-size:.9rem; margin-top:8px; min-height:1.2em; }
+
+  /* insights */
+  .chips { display:flex; gap:8px; overflow-x:auto; padding-bottom:2px; }
+  .chips button { flex:none; padding:8px 14px; font-size:.9rem; border:1px solid var(--line); border-radius:999px; background:var(--card); color:var(--text); }
+  .chips button.on { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  .tiles { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .tile { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; min-width:0; }
+  .tile span { display:block; color:var(--muted); font-size:.8rem; }
+  .tile b { display:block; font-size:1.45rem; margin:2px 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tile small { color:var(--muted); font-size:.8rem; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .legend { display:flex; gap:16px; margin:-4px 0 10px; font-size:.85rem; color:var(--muted); }
+  .legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; vertical-align:-1px; }
+  .cols { display:flex; align-items:flex-end; gap:3px; height:170px; border-bottom:1px solid var(--line); position:relative; }
+  .col { flex:1; min-width:0; height:100%; display:flex; flex-direction:column; justify-content:flex-end; gap:2px; cursor:pointer; }
+  .col i { display:block; border-radius:4px 4px 0 0; }
+  .col .s1 { background:var(--p1); } .col .s2 { background:var(--p2); }
+  .axis { position:absolute; top:-2px; left:0; font-size:.7rem; color:var(--muted); }
+  .mlabels { display:flex; gap:3px; margin-top:4px; }
+  .mlabels span { flex:1; min-width:0; text-align:center; font-size:.68rem; color:var(--muted); white-space:nowrap; overflow:visible; }
+  .hb { display:grid; grid-template-columns:minmax(90px,32%) 1fr 84px; gap:8px; align-items:center; padding:5px 0; font-size:.9rem; cursor:pointer; }
+  .hb .name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .hb .track { background:var(--track); border-radius:0 4px 4px 0; height:14px; }
+  .hb .fill { background:var(--bar); height:100%; border-radius:0 4px 4px 0; min-width:2px; }
+  .hb .val { text-align:right; font-variant-numeric:tabular-nums; }
+  .hb .val small { color:var(--muted); margin-left:4px; }
+  .split { display:flex; gap:2px; height:22px; margin:6px 0 10px; }
+  .split i { display:block; height:100%; }
+  .split i:first-child { border-radius:6px 0 0 6px; } .split i:last-child { border-radius:0 6px 6px 0; }
+  .splitl { display:flex; justify-content:space-between; font-size:.9rem; }
+  .wk { display:flex; align-items:flex-end; gap:6px; height:110px; }
+  .wk div { flex:1; display:flex; flex-direction:column; justify-content:flex-end; height:100%; text-align:center; font-size:.72rem; color:var(--muted); cursor:pointer; }
+  .wk i { display:block; background:var(--bar); border-radius:4px 4px 0 0; margin-bottom:4px; }
+  .note { color:var(--muted); font-size:.85rem; margin:10px 0 0; }
+  details { margin-top:10px; font-size:.85rem; color:var(--muted); }
+  details table { width:100%; border-collapse:collapse; margin-top:6px; font-variant-numeric:tabular-nums; }
+  details td, details th { padding:3px 4px; text-align:right; border-top:1px solid var(--line); } details td:first-child, details th:first-child { text-align:left; }
+  #tip { position:fixed; z-index:20; pointer-events:none; background:#1c1e21; color:#fff; font-size:.8rem; padding:6px 9px; border-radius:8px; max-width:220px; box-shadow:0 2px 10px rgba(0,0,0,.3); }
+  .search { margin-bottom:6px; }
 </style>
 </head>
 <body>
+<div class="bar"><div>
+  <button class="burger" id="burger" aria-label="Menu" aria-expanded="false">☰</button>
+  <h1 id="title">Shopping tracker</h1>
+</div></div>
+
+<div class="scrim" id="scrim" hidden></div>
+<nav class="drawer" id="drawer" hidden aria-label="Menu">
+  <h2>Shopping tracker</h2>
+  <button data-view="home">🏠 Home</button>
+  <button data-view="insights">📊 Insights</button>
+  <button data-view="history">🗂️ History</button>
+  <button data-view="settings">⚙️ Settings</button>
+  <hr>
+  <button class="warn" id="menuClear">✅ Settle up &amp; clear</button>
+</nav>
+
 <main>
   <section class="card" id="setup" hidden>
     <h2 id="setupTitle">Set up</h2>
@@ -58,63 +132,108 @@
   </section>
 
   <div id="app" style="display:contents" hidden>
-  <section class="card hero" id="hero"><div class="sub">Loading…</div></section>
+    <!-- Home -->
+    <div id="v-home" style="display:contents">
+      <section class="card hero" id="hero"><div class="sub">Loading…</div></section>
+      <section class="card">
+        <h2>Add a payment</h2>
+        <label>Who paid?</label>
+        <div class="seg" id="who"></div>
+        <label for="amount">Amount</label>
+        <input id="amount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00">
+        <label for="cat">Category</label>
+        <select id="cat"></select>
+        <label for="desc">Description</label>
+        <input id="desc" type="text" placeholder="e.g. Lidl" autocomplete="off">
+        <label for="date">Date</label>
+        <input id="date" type="date">
+        <button class="primary" id="add">Add</button>
+        <div class="err" id="err"></div>
+      </section>
+      <section class="card">
+        <h2>Current payments</h2>
+        <div id="list"></div>
+      </section>
+    </div>
 
-  <section class="card">
-    <h2>Add a payment</h2>
-    <label>Who paid?</label>
-    <div class="seg" id="who"></div>
-    <label for="amount">Amount</label>
-    <input id="amount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00">
-    <label for="cat">Category</label>
-    <select id="cat"></select>
-    <label for="desc">Description</label>
-    <input id="desc" type="text" placeholder="e.g. Lidl" autocomplete="off">
-    <label for="date">Date</label>
-    <input id="date" type="date">
-    <button class="primary" id="add">Add</button>
-    <div class="err" id="err"></div>
-  </section>
+    <!-- Insights -->
+    <div id="v-insights" style="display:contents" hidden>
+      <div class="chips" id="chips"></div>
+      <div id="insights" style="display:contents"></div>
+    </div>
 
-  <section class="card">
-    <h2>Current payments</h2>
-    <div id="list"></div>
-  </section>
+    <!-- History -->
+    <div id="v-history" style="display:contents" hidden>
+      <section class="card">
+        <h2>Cleared payments</h2>
+        <input class="search" id="q" type="search" placeholder="Search description or category" autocomplete="off">
+        <div id="hist"></div>
+        <button class="link" id="more" hidden>Show more</button>
+      </section>
+    </div>
 
-  <section class="card">
-    <h2>Defaults (this phone)</h2>
-    <label for="defWho">Default person</label>
-    <select id="defWho"></select>
-    <label for="defCat">Default category</label>
-    <select id="defCat"></select>
-    <button class="link" id="editSetup">Edit names, currency &amp; categories</button>
-  </section>
-
-  <button class="danger" id="clear">Settle up &amp; clear all</button>
+    <!-- Settings -->
+    <div id="v-settings" style="display:contents" hidden>
+      <section class="card">
+        <h2>Defaults (this phone)</h2>
+        <label for="defWho">Default person</label>
+        <select id="defWho"></select>
+        <label for="defCat">Default category</label>
+        <select id="defCat"></select>
+      </section>
+      <section class="card">
+        <h2>Shared settings</h2>
+        <p class="hint">Names, currency and categories are saved in the sheet, so they apply to everyone.</p>
+        <button class="primary" id="editSetup" style="margin-top:6px">Edit names, currency &amp; categories</button>
+      </section>
+    </div>
   </div>
 </main>
+<div id="tip" hidden></div>
 
 <script>
-let state = null, who = null;
+let state = null, who = null, view = 'home', range = 'month', histLimit = 50;
 const store = {
   get(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
 };
 const NEW_CAT = '__new__';
 const SUGGESTED_CATS = 'Groceries, Household, Eating out, Entertainment, Car, Gift, Other';
+const TITLES = { home: 'Shopping tracker', insights: 'Insights', history: 'History', settings: 'Settings' };
 const defaultCat = () => {
   const c = store.get('defCat', '');
   return state.categories.includes(c) ? c : state.categories[0];
 };
 const $ = id => document.getElementById(id);
-const money = n => (state ? state.currency : '') + n.toFixed(2);
+const fmt = n => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money = n => (state ? state.currency : '') + fmt(n);
+const short = n => (state ? state.currency : '') + (n >= 10000 ? Math.round(n / 1000) + 'k' : n >= 1000 ? (n / 1000).toFixed(1) + 'k' : Math.round(n));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const today = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 function run(fn, ...args) {
   return new Promise((ok, fail) => google.script.run.withSuccessHandler(ok).withFailureHandler(fail)[fn](...args));
 }
 
+/* ---------- menu / views ---------- */
+function setMenu(open) {
+  $('drawer').hidden = $('scrim').hidden = !open;
+  $('burger').setAttribute('aria-expanded', open);
+}
+function go(v) {
+  view = v;
+  setMenu(false);
+  try { history.replaceState(null, '', '#' + v); } catch (e) {}
+  render();
+  window.scrollTo(0, 0);
+}
+$('burger').onclick = () => setMenu($('drawer').hidden);
+$('scrim').onclick = () => setMenu(false);
+$('drawer').onclick = e => { const v = e.target.dataset.view; if (v) go(v); };
+$('menuClear').onclick = () => { setMenu(false); settleUp(); };
+
+/* ---------- setup ---------- */
 function showSetup(editing) {
   const s = editing ? state : { people: ['', ''], currency: '£', categories: SUGGESTED_CATS.split(', ') };
   $('p1').value = s.people[0]; $('p2').value = s.people[1];
@@ -125,21 +244,33 @@ function showSetup(editing) {
   $('setupErr').textContent = '';
   $('setup').hidden = false;
   $('app').hidden = true;
+  $('burger').hidden = !editing;
+  setMenu(false);
 }
 
+/* ---------- render ---------- */
 function render() {
   const s = state;
   if (s.needsSetup) { showSetup(false); return; }
   $('setup').hidden = true;
   $('app').hidden = false;
+  $('burger').hidden = false;
+  $('title').textContent = TITLES[view];
+  ['home', 'insights', 'history', 'settings'].forEach(v => $('v-' + v).hidden = v !== view);
+  document.querySelectorAll('.drawer [data-view]').forEach(b => b.classList.toggle('on', b.dataset.view === view));
+  ({ home: renderHome, insights: renderInsights, history: renderHistory, settings: renderSettings })[view]();
+}
+
+function catOptions(sel) {
+  return state.categories.map(c => `<option ${c === sel ? 'selected' : ''}>${esc(c)}</option>`).join('');
+}
+
+function renderHome() {
+  const s = state;
   if (!s.people.includes(who)) who = store.get('defWho', s.people[0]);
   if (!s.people.includes(who)) who = s.people[0];
-  const defCat = defaultCat();
-  const opts = (list, sel) => list.map(c => `<option ${c === sel ? 'selected' : ''}>${esc(c)}</option>`).join('');
   const keepCat = $('cat').value;
-  $('cat').innerHTML = opts(s.categories, s.categories.includes(keepCat) ? keepCat : defCat) + `<option value="${NEW_CAT}">+ New category…</option>`;
-  $('defWho').innerHTML = opts(s.people, store.get('defWho', s.people[0]));
-  $('defCat').innerHTML = opts(s.categories, defCat);
+  $('cat').innerHTML = catOptions(s.categories.includes(keepCat) ? keepCat : defaultCat()) + `<option value="${NEW_CAT}">+ New category…</option>`;
   $('who').innerHTML = s.people.map(p => `<button data-p="${esc(p)}" class="${p === who ? 'on' : ''}">${esc(p)}</button>`).join('');
 
   const d = s.debt;
@@ -151,13 +282,167 @@ function render() {
   $('list').innerHTML = s.items.length
     ? s.items.map(i => `<div class="row"><div class="main"><div>${esc(i.description) || esc(i.category)}</div><div class="meta">${esc(i.category)} · ${esc(i.person)} · ${esc(i.date)}</div></div><div class="amt">${money(i.amount)}</div><button class="x" data-del="${esc(i.id)}" aria-label="Delete">✕</button></div>`).join('')
     : '<div class="empty">Nothing yet</div>';
-  $('clear').disabled = !s.items.length;
 }
 
+function renderSettings() {
+  $('defWho').innerHTML = state.people.map(p => `<option ${p === store.get('defWho', state.people[0]) ? 'selected' : ''}>${esc(p)}</option>`).join('');
+  $('defCat').innerHTML = catOptions(defaultCat());
+}
+
+function renderHistory() {
+  const q = $('q').value.trim().toLowerCase();
+  const rows = state.history.filter(i => !q || (i.description + ' ' + i.category + ' ' + i.person).toLowerCase().includes(q));
+  $('hist').innerHTML = rows.length
+    ? rows.slice(0, histLimit).map(i => `<div class="row"><div class="main"><div>${esc(i.description) || esc(i.category)}</div><div class="meta">${esc(i.category)} · ${esc(i.person)} · ${esc(i.date)}</div></div><div class="amt">${money(i.amount)}</div></div>`).join('')
+    : `<div class="empty">${state.history.length ? 'No matches' : 'Nothing cleared yet'}</div>`;
+  $('more').hidden = rows.length <= histLimit;
+}
+$('q').oninput = () => { histLimit = 50; renderHistory(); };
+$('more').onclick = () => { histLimit += 100; renderHistory(); };
+
+/* ---------- insights ---------- */
+const RANGES = [['month', 'This month'], ['3m', '3 months'], ['12m', '12 months'], ['all', 'All time']];
+
+function monthStart(offset) {           // 'yyyy-mm-01' for the month `offset` months from now
+  const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + offset);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01';
+}
+const sumBy = (list, f) => list.reduce((t, i) => t + f(i), 0);
+const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+
+function renderInsights() {
+  $('chips').innerHTML = RANGES.map(([k, l]) => `<button data-r="${k}" class="${k === range ? 'on' : ''}">${l}</button>`).join('');
+  const s = state;
+  const all = s.items.concat(s.history);
+  if (!all.length) { $('insights').innerHTML = '<section class="card empty">Add some payments to see insights.</section>'; return; }
+
+  const n = { month: 1, '3m': 3, '12m': 12 }[range];
+  const start = n ? monthStart(1 - n) : '';
+  const list = all.filter(i => i.date >= start);
+  if (!list.length) { $('insights').innerHTML = '<section class="card empty">No payments in this period.</section>'; return; }
+  const total = sumBy(list, i => i.amount);
+
+  // Change vs the previous period, compared like-for-like (same point in time, not a full earlier period).
+  let delta = '';
+  if (n) {
+    const cut = new Date(); cut.setMonth(cut.getMonth() - n);
+    const cutStr = cut.getFullYear() + '-' + String(cut.getMonth() + 1).padStart(2, '0') + '-' + String(cut.getDate()).padStart(2, '0');
+    const prevTotal = sumBy(all.filter(i => i.date >= monthStart(1 - 2 * n) && i.date <= cutStr), i => i.amount);
+    if (prevTotal > 0 && all.reduce((m, i) => i.date < m ? i.date : m, '9') <= monthStart(1 - 2 * n)) {
+      const ch = Math.round((total - prevTotal) / prevTotal * 100);
+      delta = `${ch >= 0 ? '▲' : '▼'} ${Math.abs(ch)}% vs ${n === 1 ? 'last month' : 'prior ' + n + ' mo'}`;
+    }
+  }
+
+  // Months in the window (capped at 18 columns for the chart).
+  const first = (start || list.reduce((m, i) => i.date < m ? i.date : m, list[0].date)).slice(0, 7);
+  const months = [];
+  for (let [y, m] = [+first.slice(0, 4), +first.slice(5, 7)], now = monthStart(0).slice(0, 7); ;) {
+    const key = y + '-' + String(m).padStart(2, '0');
+    months.push(key);
+    if (key >= now) break;
+    if (++m > 12) { m = 1; y++; }
+  }
+  const nMonths = months.length;
+  const shown = months.slice(-18);
+
+  const biggest = list.reduce((b, i) => i.amount > b.amount ? i : b, list[0]);
+  const perMonth = nMonths > 1;
+  const dayOfMonth = new Date().getDate();
+  const tiles = `<div class="tiles">
+    <div class="tile"><span>Total spent</span><b>${money(total)}</b><small>${esc(delta) || list.length + ' payments'}</small></div>
+    <div class="tile"><span>${perMonth ? 'Average per month' : 'Average per day'}</span><b>${money(total / (perMonth ? nMonths : dayOfMonth))}</b><small>${list.length} payments</small></div>
+    <div class="tile"><span>Average payment</span><b>${money(total / list.length)}</b><small>typical spend</small></div>
+    <div class="tile" data-tip="${esc(biggest.description || biggest.category)} · ${esc(biggest.person)} · ${esc(biggest.date)}"><span>Biggest payment</span><b>${money(biggest.amount)}</b><small>${esc(biggest.description || biggest.category)}</small></div>
+  </div>`;
+
+  // Monthly spend, stacked by who paid.
+  const [A, B] = s.people;
+  const daily = nMonths === 1;
+  const keys = daily
+    ? Array.from({ length: dayOfMonth }, (_, d) => months[0] + '-' + String(d + 1).padStart(2, '0'))
+    : shown;
+  const per = keys.map(k => {
+    const inB = list.filter(i => i.date.startsWith(k));
+    return { k, a: sumBy(inB.filter(i => i.person === A), i => i.amount), b: sumBy(inB.filter(i => i.person === B), i => i.amount) };
+  });
+  const maxM = Math.max(...per.map(p => p.a + p.b), 1);
+  const H = 146, px = v => v > 0 ? Math.max(2, Math.round(v / maxM * H)) : 0;
+  const name = k => daily ? +k.slice(8) + ' ' + MONTHS[+k.slice(5, 7) - 1] : MONTHS[+k.slice(5, 7) - 1] + ' ' + k.slice(0, 4);
+  const label = (k, i) => {
+    if (daily) return String(+k.slice(8));
+    const m = MONTHS[+k.slice(5, 7) - 1];
+    return (i === 0 || m === 'Jan') && keys.length > 6 ? m + ' ’' + k.slice(2, 4) : m;
+  };
+  const every = daily ? 5 : keys.length > 12 ? 3 : keys.length > 7 ? 2 : 1;
+  const monthly = `<section class="card"><h2>Spending by ${daily ? 'day' : 'month'}</h2>
+    <div class="legend"><span><i style="background:var(--p1)"></i>${esc(A)}</span><span><i style="background:var(--p2)"></i>${esc(B)}</span></div>
+    <div class="cols" style="max-width:${keys.length * 48}px"><span class="axis">${short(maxM)}</span>${per.map(p => `<div class="col" data-tip="${name(p.k)}: ${money(p.a + p.b)}&#10;${esc(A)} ${money(p.a)} · ${esc(B)} ${money(p.b)}">${p.b ? `<i class="s2" style="height:${px(p.b)}px"></i>` : ''}${p.a ? `<i class="s1" style="height:${px(p.a)}px"></i>` : ''}</div>`).join('')}</div>
+    <div class="mlabels" style="max-width:${keys.length * 48}px">${keys.map((k, i) => `<span>${(keys.length - 1 - i) % every === 0 ? label(k, i) : ''}</span>`).join('')}</div>
+    <details><summary>Show as table</summary><table><tr><th>${daily ? 'Day' : 'Month'}</th><th>${esc(A)}</th><th>${esc(B)}</th><th>Total</th></tr>${per.slice().reverse().filter(p => p.a + p.b > 0).map(p => `<tr><td>${p.k}</td><td>${money(p.a)}</td><td>${money(p.b)}</td><td>${money(p.a + p.b)}</td></tr>`).join('')}</table></details>
+  </section>`;
+
+  // By category, biggest first; tail folded into one row.
+  const byCat = {};
+  list.forEach(i => byCat[i.category] = (byCat[i.category] || 0) + i.amount);
+  let cats = Object.entries(byCat).sort((x, y) => y[1] - x[1]);
+  if (cats.length > 8) { const rest = cats.slice(7); cats = cats.slice(0, 7).concat([[`${rest.length} others`, sumBy(rest, c => c[1])]]); }
+  const catCard = `<section class="card"><h2>Where the money goes</h2>${cats.map(([c, v]) =>
+    `<div class="hb" data-tip="${esc(c)}: ${money(v)} (${pct(v, total)}%)"><span class="name">${esc(c)}</span><div class="track"><div class="fill" style="width:${v / cats[0][1] * 100}%"></div></div><span class="val">${short(v)}<small>${pct(v, total)}%</small></span></div>`).join('')}</section>`;
+
+  // Who paid what.
+  const pa = sumBy(list.filter(i => i.person === A), i => i.amount), pb = total - pa;
+  const split = `<section class="card"><h2>Who pays more</h2>
+    <div class="split"><i style="flex:${pa || .001};background:var(--p1)"></i><i style="flex:${pb || .001};background:var(--p2)"></i></div>
+    <div class="splitl"><span><b style="color:var(--p1)">●</b> ${esc(A)} ${money(pa)} (${pct(pa, total)}%)</span><span><b style="color:var(--p2)">●</b> ${esc(B)} ${money(pb)} (${pct(pb, total)}%)</span></div>
+    <p class="note">${pa === pb ? 'Perfectly even.' : `${esc(pa > pb ? A : B)} has covered ${money(Math.abs(pa - pb))} more than the other.`}</p></section>`;
+
+  // Busiest weekday (Monday first).
+  const wd = [0, 0, 0, 0, 0, 0, 0];
+  list.forEach(i => wd[(new Date(i.date + 'T12:00:00').getDay() + 6) % 7] += i.amount);
+  const maxW = Math.max(...wd, 1), DN = ['M', 'T', 'W', 'T', 'F', 'S', 'S'], DF = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const busiest = wd.indexOf(maxW);
+  const week = `<section class="card"><h2>Spending by weekday</h2><div class="wk">${wd.map((v, k) =>
+    `<div data-tip="${DF[k]}: ${money(v)}"><i style="height:${Math.round(v / maxW * 80)}px"></i>${DN[k]}</div>`).join('')}</div>
+    <p class="note">${DF[busiest]} is your biggest spending day.</p></section>`;
+
+  // Places / things you keep paying for.
+  const freq = {};
+  list.forEach(i => { const k = (i.description || '').trim().toLowerCase(); if (k) { const f = freq[k] || (freq[k] = { n: 0, t: 0, name: i.description.trim() }); f.n++; f.t += i.amount; } });
+  const top = Object.values(freq).filter(f => f.n >= 2).sort((x, y) => y.n - x.n || y.t - x.t).slice(0, 5);
+  const topCard = top.length ? `<section class="card"><h2>Most frequent</h2>${top.map(f =>
+    `<div class="row"><div class="main"><div>${esc(f.name)}</div><div class="meta">${f.n} payments</div></div><div class="amt">${money(f.t)}</div></div>`).join('')}</section>` : '';
+
+  $('insights').innerHTML = tiles + monthly + catCard + split + week + topCard;
+}
+$('chips').onclick = e => { const r = e.target.dataset.r; if (r) { range = r; store.set('range', r); renderInsights(); } };
+
+/* ---------- tooltips (hover on desktop, tap on phones) ---------- */
+function showTip(el, x, y) {
+  const t = $('tip');
+  t.innerHTML = esc(el.dataset.tip).replace(/&#10;|\n/g, '<br>');
+  t.hidden = false;
+  const w = t.offsetWidth;
+  t.style.left = Math.max(8, Math.min(innerWidth - w - 8, x - w / 2)) + 'px';
+  t.style.top = Math.max(8, y - t.offsetHeight - 14) + 'px';
+}
+document.addEventListener('pointerover', e => { const el = e.target.closest('[data-tip]'); if (el && e.pointerType === 'mouse') showTip(el, e.clientX, e.clientY); });
+document.addEventListener('pointerout', e => { if (e.pointerType === 'mouse') $('tip').hidden = true; });
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-tip]');
+  if (el) showTip(el, e.clientX, e.clientY); else $('tip').hidden = true;
+});
+addEventListener('scroll', () => $('tip').hidden = true, { passive: true });
+
+/* ---------- actions ---------- */
 async function act(fn, ...args) {
   $('err').textContent = '';
   try { state = await run(fn, ...args); render(); return true; }
   catch (e) { $('err').textContent = e.message || String(e); return false; }
+}
+function settleUp() {
+  if (!state.items.length) { alert('Nothing to clear.'); return; }
+  if (confirm('Move all current payments to the Cleared sheet and reset to zero?')) { view = 'home'; act('clearAll'); }
 }
 
 $('editSetup').onclick = () => showSetup(true);
@@ -178,7 +463,7 @@ $('cat').onchange = () => {
   $('cat').innerHTML = state.categories.map(c => `<option>${esc(c)}</option>`).join('') + `<option value="${NEW_CAT}">+ New category…</option>`;
   $('cat').value = n || defaultCat();
 };
-$('defWho').onchange = () => { store.set('defWho', $('defWho').value); who = $('defWho').value; render(); };
+$('defWho').onchange = () => { store.set('defWho', $('defWho').value); who = $('defWho').value; };
 $('defCat').onchange = () => { store.set('defCat', $('defCat').value); $('cat').value = $('defCat').value; };
 $('add').onclick = async () => {
   if ($('cat').value === NEW_CAT) { $('err').textContent = 'Pick a category'; return; }
@@ -192,11 +477,12 @@ $('list').onclick = e => {
   const id = e.target.dataset.del;
   if (id && confirm('Delete this payment?')) act('deleteExpense', id);
 };
-$('clear').onclick = () => {
-  if (confirm('Move all current payments to the Cleared sheet and reset to zero?')) act('clearAll');
-};
 
 $('date').value = today();
+range = store.get('range', '3m');
+const [h, hr] = location.hash.slice(1).split(':');
+if (h === 'menu') setMenu(true); else if (TITLES[h]) view = h;
+if (RANGES.some(x => x[0] === hr)) range = hr;
 act('getState');
 </script>
 </body>

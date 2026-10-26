@@ -29,13 +29,18 @@ function sheet_(name, extraHeader) {
   return sh;
 }
 
+function day_(v) {
+  return v instanceof Date ? Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd') : String(v);
+}
+
 function rows_(sh) {
   const n = sh.getLastRow() - 1;
   if (n < 1) return [];
-  return sh.getRange(2, 1, n, HEADERS.length).getValues()
+  return sh.getRange(2, 1, n, HEADERS.length + 1).getValues()
     .filter(r => r[1] && r[2] !== '')
     .map(r => ({
-      date: r[0] instanceof Date ? Utilities.formatDate(r[0], Session.getScriptTimeZone(), 'yyyy-MM-dd') : String(r[0]),
+      date: day_(r[0]),
+      clearedOn: r[6] ? day_(r[6]) : '',
       person: r[1], amount: Number(r[2]), category: r[3] || 'Other', description: r[4], id: r[5],
     }));
 }
@@ -102,8 +107,10 @@ function getState() {
   const debt = amount === 0 ? null : { from: net[a] < 0 ? a : b, to: net[a] < 0 ? b : a, amount };
   const cats = cfg.categories.slice();
   const cl = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Cleared');
-  items.concat(cl ? rows_(cl) : []).forEach(i => { if (i.category && !cats.includes(i.category)) cats.push(i.category); });
-  return { people: PEOPLE, categories: cats, currency: cfg.currency, items, paid, total, debt };
+  // Cleared payments, newest first; used for history and insights.
+  const history = (cl ? rows_(cl) : []).sort((x, y) => y.date < x.date ? -1 : y.date > x.date ? 1 : 0);
+  items.concat(history).forEach(i => { if (i.category && !cats.includes(i.category)) cats.push(i.category); });
+  return { people: PEOPLE, categories: cats, currency: cfg.currency, items, history, paid, total, debt };
 }
 
 function addExpense(person, amount, category, description, date) {
