@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta name="color-scheme" content="light dark">
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --text:#1c1e21; --muted:#6b7280; --line:#e5e7eb; --accent:#2563eb; --good:#15803d; --bad:#b91c1c; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#111317; --card:#1b1e24; --text:#eceef1; --muted:#9aa1ad; --line:#2b2f37; --accent:#5b8def; --good:#4ade80; --bad:#f87171; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.4 -apple-system,system-ui,Roboto,sans-serif; padding:16px; padding-bottom:40px; }
+  main { max-width:520px; margin:0 auto; display:grid; gap:14px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; }
+  .hero { text-align:center; padding:24px 16px; }
+  .hero .big { font-size:2.2rem; font-weight:700; margin:4px 0; }
+  .hero .sub { color:var(--muted); font-size:.9rem; }
+  .paid { display:flex; justify-content:space-around; margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
+  .paid div { text-align:center; } .paid b { display:block; font-size:1.1rem; } .paid span { color:var(--muted); font-size:.85rem; }
+  h2 { margin:0 0 12px; font-size:1rem; }
+  label { display:block; font-size:.85rem; color:var(--muted); margin:10px 0 4px; }
+  input, select { width:100%; padding:12px; font-size:16px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--text); }
+  .seg { display:grid; grid-auto-flow:column; gap:8px; }
+  .seg button { padding:12px; font-size:1rem; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--text); }
+  .seg button.on { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  .primary { width:100%; margin-top:14px; padding:14px; font-size:1rem; font-weight:600; border:0; border-radius:10px; background:var(--accent); color:#fff; }
+  .primary:disabled { opacity:.5; }
+  .row { display:flex; align-items:center; gap:10px; padding:10px 0; border-top:1px solid var(--line); }
+  .row:first-of-type { border-top:0; }
+  .row .main { flex:1; min-width:0; } .row .main div:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .row .meta { color:var(--muted); font-size:.8rem; }
+  .row .amt { font-weight:600; }
+  .x { border:0; background:none; color:var(--muted); font-size:1.2rem; padding:6px 10px; }
+  .danger { width:100%; padding:12px; font-size:.95rem; border:1px solid var(--bad); border-radius:10px; background:none; color:var(--bad); }
+  [hidden] { display:none !important; }
+  .hint { color:var(--muted); font-size:.9rem; margin:0 0 4px; }
+  .link { width:100%; margin-top:12px; padding:10px; border:0; background:none; color:var(--accent); font-size:.95rem; }
+  .empty { color:var(--muted); text-align:center; padding:8px 0; }
+  .err { color:var(--bad); font-size:.9rem; margin-top:8px; min-height:1.2em; }
+</style>
+</head>
+<body>
+<main>
+  <section class="card" id="setup" hidden>
+    <h2 id="setupTitle">Set up</h2>
+    <p class="hint" id="setupHint">Split shared costs 50/50 between two people. You can change any of this later.</p>
+    <label for="p1">First person</label>
+    <input id="p1" type="text" autocomplete="off" placeholder="e.g. Alex">
+    <label for="p2">Second person</label>
+    <input id="p2" type="text" autocomplete="off" placeholder="e.g. Sam">
+    <label for="cur">Currency symbol</label>
+    <input id="cur" type="text" autocomplete="off" placeholder="£" maxlength="3">
+    <label for="cats">Categories (comma separated)</label>
+    <input id="cats" type="text" autocomplete="off">
+    <button class="primary" id="saveSetup">Save</button>
+    <button class="link" id="cancelSetup" hidden>Cancel</button>
+    <div class="err" id="setupErr"></div>
+  </section>
+
+  <div id="app" style="display:contents" hidden>
+  <section class="card hero" id="hero"><div class="sub">Loading…</div></section>
+
+  <section class="card">
+    <h2>Add a payment</h2>
+    <label>Who paid?</label>
+    <div class="seg" id="who"></div>
+    <label for="amount">Amount</label>
+    <input id="amount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00">
+    <label for="cat">Category</label>
+    <select id="cat"></select>
+    <label for="desc">Description</label>
+    <input id="desc" type="text" placeholder="e.g. Lidl" autocomplete="off">
+    <label for="date">Date</label>
+    <input id="date" type="date">
+    <button class="primary" id="add">Add</button>
+    <div class="err" id="err"></div>
+  </section>
+
+  <section class="card">
+    <h2>Current payments</h2>
+    <div id="list"></div>
+  </section>
+
+  <section class="card">
+    <h2>Defaults (this phone)</h2>
+    <label for="defWho">Default person</label>
+    <select id="defWho"></select>
+    <label for="defCat">Default category</label>
+    <select id="defCat"></select>
+    <button class="link" id="editSetup">Edit names, currency &amp; categories</button>
+  </section>
+
+  <button class="danger" id="clear">Settle up &amp; clear all</button>
+  </div>
+</main>
+
+<script>
+let state = null, who = null;
+const store = {
+  get(k, d) { try { return localStorage.getItem(k) || d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+};
+const NEW_CAT = '__new__';
+const SUGGESTED_CATS = 'Groceries, Household, Eating out, Entertainment, Car, Gift, Other';
+const defaultCat = () => {
+  const c = store.get('defCat', '');
+  return state.categories.includes(c) ? c : state.categories[0];
+};
+const $ = id => document.getElementById(id);
+const money = n => (state ? state.currency : '') + n.toFixed(2);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const today = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+
+function run(fn, ...args) {
+  return new Promise((ok, fail) => google.script.run.withSuccessHandler(ok).withFailureHandler(fail)[fn](...args));
+}
+
+function showSetup(editing) {
+  const s = editing ? state : { people: ['', ''], currency: '£', categories: SUGGESTED_CATS.split(', ') };
+  $('p1').value = s.people[0]; $('p2').value = s.people[1];
+  $('cur').value = s.currency; $('cats').value = s.categories.join(', ');
+  $('setupTitle').textContent = editing ? 'Names, currency & categories' : 'Welcome — set up';
+  $('setupHint').hidden = !!editing;
+  $('cancelSetup').hidden = !editing;
+  $('setupErr').textContent = '';
+  $('setup').hidden = false;
+  $('app').hidden = true;
+}
+
+function render() {
+  const s = state;
+  if (s.needsSetup) { showSetup(false); return; }
+  $('setup').hidden = true;
+  $('app').hidden = false;
+  if (!s.people.includes(who)) who = store.get('defWho', s.people[0]);
+  if (!s.people.includes(who)) who = s.people[0];
+  const defCat = defaultCat();
+  const opts = (list, sel) => list.map(c => `<option ${c === sel ? 'selected' : ''}>${esc(c)}</option>`).join('');
+  const keepCat = $('cat').value;
+  $('cat').innerHTML = opts(s.categories, s.categories.includes(keepCat) ? keepCat : defCat) + `<option value="${NEW_CAT}">+ New category…</option>`;
+  $('defWho').innerHTML = opts(s.people, store.get('defWho', s.people[0]));
+  $('defCat').innerHTML = opts(s.categories, defCat);
+  $('who').innerHTML = s.people.map(p => `<button data-p="${esc(p)}" class="${p === who ? 'on' : ''}">${esc(p)}</button>`).join('');
+
+  const d = s.debt;
+  $('hero').innerHTML = (d
+    ? `<div class="sub">${esc(d.from)} owes ${esc(d.to)}</div><div class="big" style="color:var(--bad)">${money(d.amount)}</div>`
+    : `<div class="big" style="color:var(--good)">All square</div>`) +
+    `<div class="paid">${s.people.map(p => `<div><b>${money(s.paid[p])}</b><span>${esc(p)} paid</span></div>`).join('')}</div>`;
+
+  $('list').innerHTML = s.items.length
+    ? s.items.map(i => `<div class="row"><div class="main"><div>${esc(i.description) || esc(i.category)}</div><div class="meta">${esc(i.category)} · ${esc(i.person)} · ${esc(i.date)}</div></div><div class="amt">${money(i.amount)}</div><button class="x" data-del="${esc(i.id)}" aria-label="Delete">✕</button></div>`).join('')
+    : '<div class="empty">Nothing yet</div>';
+  $('clear').disabled = !s.items.length;
+}
+
+async function act(fn, ...args) {
+  $('err').textContent = '';
+  try { state = await run(fn, ...args); render(); return true; }
+  catch (e) { $('err').textContent = e.message || String(e); return false; }
+}
+
+$('editSetup').onclick = () => showSetup(true);
+$('cancelSetup').onclick = () => render();
+$('saveSetup').onclick = async () => {
+  $('saveSetup').disabled = true;
+  try {
+    state = await run('saveSettings', $('p1').value, $('p2').value, $('cur').value, $('cats').value);
+    who = null; render();
+  } catch (e) { $('setupErr').textContent = e.message || String(e); }
+  $('saveSetup').disabled = false;
+};
+$('who').onclick = e => { const p = e.target.dataset.p; if (p) { who = p; render(); } };
+$('cat').onchange = () => {
+  if ($('cat').value !== NEW_CAT) return;
+  const n = (prompt('New category name') || '').trim();
+  if (n && !state.categories.includes(n)) state.categories.push(n);
+  $('cat').innerHTML = state.categories.map(c => `<option>${esc(c)}</option>`).join('') + `<option value="${NEW_CAT}">+ New category…</option>`;
+  $('cat').value = n || defaultCat();
+};
+$('defWho').onchange = () => { store.set('defWho', $('defWho').value); who = $('defWho').value; render(); };
+$('defCat').onchange = () => { store.set('defCat', $('defCat').value); $('cat').value = $('defCat').value; };
+$('add').onclick = async () => {
+  if ($('cat').value === NEW_CAT) { $('err').textContent = 'Pick a category'; return; }
+  $('add').disabled = true;
+  const cat = $('cat').value;
+  const ok = await act('addExpense', who, $('amount').value, cat, $('desc').value, $('date').value);
+  if (ok) { $('amount').value = ''; $('desc').value = ''; $('cat').value = defaultCat(); }
+  $('add').disabled = false;
+};
+$('list').onclick = e => {
+  const id = e.target.dataset.del;
+  if (id && confirm('Delete this payment?')) act('deleteExpense', id);
+};
+$('clear').onclick = () => {
+  if (confirm('Move all current payments to the Cleared sheet and reset to zero?')) act('clearAll');
+};
+
+$('date').value = today();
+act('getState');
+</script>
+</body>
+</html>
