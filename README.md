@@ -15,6 +15,7 @@ A tiny app for two people to track shared spending and see who owes whom. It spl
 - Your data lives in **your own Google Sheet**, so there is nothing to host and nothing to pay for
 - Everyone uses their own Google account and sets their own names, currency and categories
 - **Insights** show spending by month (or day), by category, who pays more, busiest weekday and your most frequent payments, over this month, 3 months, 12 months or all time
+- **Everything in Insights is tappable.** Tiles, chart bars and segments, legend, category rows, weekday bars and frequent payments all open a breakdown of the payments behind them. From there you can regroup by category, description, person, month/day, weekday or payment size, and tap a group to drill in further
 - A hamburger menu switches between Home, Insights, History and Settings
 - "Settle up & clear" (in the menu) moves current payments to a **Cleared** tab and resets the balance
 

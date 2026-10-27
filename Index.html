@@ -95,6 +95,30 @@
   details td, details th { padding:3px 4px; text-align:right; border-top:1px solid var(--line); } details td:first-child, details th:first-child { text-align:left; }
   #tip { position:fixed; z-index:20; pointer-events:none; background:#1c1e21; color:#fff; font-size:.8rem; padding:6px 9px; border-radius:8px; max-width:220px; box-shadow:0 2px 10px rgba(0,0,0,.3); }
   .search { margin-bottom:6px; }
+
+  /* drill-down: anything with data-d opens the detail sheet */
+  [data-d] { cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  [data-d]:active { opacity:.7; }
+  [data-d]:focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:6px; }
+  tr[data-d]:hover td { background:var(--bg); }
+  .legend [data-d], .splitl [data-d] { padding:2px 0; }
+  .chev { color:var(--muted); font-size:1.3rem; line-height:1; padding-left:2px; }
+  .dscrim { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:11; }
+  .sheet { position:fixed; left:50%; bottom:0; transform:translateX(-50%); width:min(560px,100%); max-height:88vh; background:var(--card); border:1px solid var(--line); border-bottom:0; border-radius:18px 18px 0 0; z-index:12; display:flex; flex-direction:column; box-shadow:0 -6px 30px rgba(0,0,0,.3); }
+  .sheethead { display:flex; align-items:center; gap:2px; padding:8px 6px 8px 8px; border-bottom:1px solid var(--line); }
+  .sheethead .ttl { flex:1; min-width:0; padding:0 6px; }
+  .sheethead .ttl b { display:block; font-size:1.05rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sheethead .ttl small { display:block; color:var(--muted); font-size:.8rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sheethead button { border:0; background:none; color:var(--text); font-size:1.5rem; line-height:1; padding:8px 12px; border-radius:10px; }
+  .sbody { overflow-y:auto; overscroll-behavior:contain; padding:14px 16px calc(24px + env(safe-area-inset-bottom)); }
+  .dsum { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; text-align:center; }
+  .dsum b { display:block; font-size:1.15rem; } .dsum span { color:var(--muted); font-size:.8rem; }
+  .sbody .note { text-align:center; margin:8px 0 0; }
+  .sbody .chips { margin-top:14px; }
+  .sbody h3 { margin:16px 0 4px; font-size:.85rem; font-weight:600; color:var(--muted); }
+  .sbody .hb .name small { color:var(--muted); margin-left:4px; }
+  .sbody .row { padding:9px 0; }
+  .hb.flat { cursor:default; }
 </style>
 </head>
 <body>
@@ -191,6 +215,16 @@
 </main>
 <div id="tip" hidden></div>
 
+<div class="dscrim" id="dscrim" hidden></div>
+<section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
+  <div class="sheethead">
+    <button id="sback" aria-label="Back" hidden>‹</button>
+    <div class="ttl"><b id="sheetTitle"></b><small id="sheetSub"></small></div>
+    <button id="sclose" aria-label="Close">✕</button>
+  </div>
+  <div class="sbody" id="sbody"></div>
+</section>
+
 <script>
 let state = null, who = null, view = 'home', range = 'month', histLimit = 50;
 const store = {
@@ -222,6 +256,7 @@ function setMenu(open) {
   $('burger').setAttribute('aria-expanded', open);
 }
 function go(v) {
+  closeSheet();
   view = v;
   setMenu(false);
   try { history.replaceState(null, '', '#' + v); } catch (e) {}
@@ -322,6 +357,11 @@ function renderInsights() {
   if (!list.length) { $('insights').innerHTML = '<section class="card empty">No payments in this period.</section>'; return; }
   const total = sumBy(list, i => i.amount);
 
+  // Every tappable element registers a "spec" here and gets data-d="<index>"; openDetail() shows it.
+  const period = RANGES.find(r => r[0] === range)[1];
+  DRILL = [];
+  const drill = spec => (spec.items.length ? ` data-d="${DRILL.push(Object.assign({ period }, spec)) - 1}" role="button" tabindex="0"` : '');
+
   // Change vs the previous period, compared like-for-like (same point in time, not a full earlier period).
   let delta = '';
   if (n) {
@@ -349,26 +389,35 @@ function renderInsights() {
   const biggest = list.reduce((b, i) => i.amount > b.amount ? i : b, list[0]);
   const perMonth = nMonths > 1;
   const dayOfMonth = new Date().getDate();
+  const avgPer = total / (perMonth ? nMonths : dayOfMonth);
+  const amts = list.map(i => i.amount).sort((x, y) => x - y);
+  const median = amts.length % 2 ? amts[(amts.length - 1) / 2] : (amts[amts.length / 2 - 1] + amts[amts.length / 2]) / 2;
+  const topN = list.slice().sort((x, y) => y.amount - x.amount).slice(0, 10);
   const tiles = `<div class="tiles">
-    <div class="tile"><span>Total spent</span><b>${money(total)}</b><small>${esc(delta) || list.length + ' payments'}</small></div>
-    <div class="tile"><span>${perMonth ? 'Average per month' : 'Average per day'}</span><b>${money(total / (perMonth ? nMonths : dayOfMonth))}</b><small>${list.length} payments</small></div>
-    <div class="tile"><span>Average payment</span><b>${money(total / list.length)}</b><small>typical spend</small></div>
-    <div class="tile" data-tip="${esc(biggest.description || biggest.category)} · ${esc(biggest.person)} · ${esc(biggest.date)}"><span>Biggest payment</span><b>${money(biggest.amount)}</b><small>${esc(biggest.description || biggest.category)}</small></div>
+    <div class="tile"${drill({ title: 'All payments', items: list, by: 'category' })}><span>Total spent</span><b>${money(total)}</b><small>${esc(delta) || list.length + ' payments'}</small></div>
+    <div class="tile"${drill({ title: perMonth ? 'Spending by month' : 'Spending by day', items: list, by: perMonth ? 'month' : 'day', note: `Average ${money(avgPer)} per ${perMonth ? 'month over ' + nMonths + ' months' : 'day over ' + dayOfMonth + ' days so far'}` })}><span>${perMonth ? 'Average per month' : 'Average per day'}</span><b>${money(avgPer)}</b><small>${list.length} payments</small></div>
+    <div class="tile"${drill({ title: 'Payment sizes', items: list, by: 'size', sort: 'amount', note: `Average ${money(total / list.length)} · typical (median) ${money(median)}` })}><span>Average payment</span><b>${money(total / list.length)}</b><small>typical spend</small></div>
+    <div class="tile" data-tip="${esc(biggest.description || biggest.category)} · ${esc(biggest.person)} · ${esc(biggest.date)}"${drill({ title: 'Biggest payments', items: topN, by: 'list', sort: 'amount', note: `Top ${topN.length} of ${list.length} payments` })}><span>Biggest payment</span><b>${money(biggest.amount)}</b><small>${esc(biggest.description || biggest.category)}</small></div>
   </div>`;
 
   // Monthly spend, stacked by who paid.
   const [A, B] = s.people;
+  const itemsA = list.filter(i => i.person === A), itemsB = list.filter(i => i.person === B);
   const daily = nMonths === 1;
   const keys = daily
     ? Array.from({ length: dayOfMonth }, (_, d) => months[0] + '-' + String(d + 1).padStart(2, '0'))
     : shown;
   const per = keys.map(k => {
-    const inB = list.filter(i => i.date.startsWith(k));
-    return { k, a: sumBy(inB.filter(i => i.person === A), i => i.amount), b: sumBy(inB.filter(i => i.person === B), i => i.amount) };
+    const inK = list.filter(i => i.date.startsWith(k));
+    const ia = inK.filter(i => i.person === A), ib = inK.filter(i => i.person === B);
+    return { k, ia, ib, all: ia.concat(ib), a: sumBy(ia, i => i.amount), b: sumBy(ib, i => i.amount) };
   });
   const maxM = Math.max(...per.map(p => p.a + p.b), 1);
   const H = 146, px = v => v > 0 ? Math.max(2, Math.round(v / maxM * H)) : 0;
   const name = k => daily ? +k.slice(8) + ' ' + MONTHS[+k.slice(5, 7) - 1] : MONTHS[+k.slice(5, 7) - 1] + ' ' + k.slice(0, 4);
+  const colSpec = p => drill({ title: name(p.k), items: p.all, by: 'category' });
+  const segSpec = (p, who, items) => drill({ title: name(p.k) + ' · ' + who, items, by: 'category' });
+  const personSpec = (who, items) => drill({ title: who + ' paid', items, by: 'category' });
   const label = (k, i) => {
     if (daily) return String(+k.slice(8));
     const m = MONTHS[+k.slice(5, 7) - 1];
@@ -376,46 +425,152 @@ function renderInsights() {
   };
   const every = daily ? 5 : keys.length > 12 ? 3 : keys.length > 7 ? 2 : 1;
   const monthly = `<section class="card"><h2>Spending by ${daily ? 'day' : 'month'}</h2>
-    <div class="legend"><span><i style="background:var(--p1)"></i>${esc(A)}</span><span><i style="background:var(--p2)"></i>${esc(B)}</span></div>
-    <div class="cols" style="max-width:${keys.length * 48}px"><span class="axis">${short(maxM)}</span>${per.map(p => `<div class="col" data-tip="${name(p.k)}: ${money(p.a + p.b)}&#10;${esc(A)} ${money(p.a)} · ${esc(B)} ${money(p.b)}">${p.b ? `<i class="s2" style="height:${px(p.b)}px"></i>` : ''}${p.a ? `<i class="s1" style="height:${px(p.a)}px"></i>` : ''}</div>`).join('')}</div>
+    <div class="legend"><span${personSpec(A, itemsA)}><i style="background:var(--p1)"></i>${esc(A)}</span><span${personSpec(B, itemsB)}><i style="background:var(--p2)"></i>${esc(B)}</span></div>
+    <div class="cols" style="max-width:${keys.length * 48}px"><span class="axis">${short(maxM)}</span>${per.map(p => `<div class="col" data-tip="${name(p.k)}: ${money(p.a + p.b)}&#10;${esc(A)} ${money(p.a)} · ${esc(B)} ${money(p.b)}"${colSpec(p)}>${p.b ? `<i class="s2" style="height:${px(p.b)}px"${segSpec(p, B, p.ib)}></i>` : ''}${p.a ? `<i class="s1" style="height:${px(p.a)}px"${segSpec(p, A, p.ia)}></i>` : ''}</div>`).join('')}</div>
     <div class="mlabels" style="max-width:${keys.length * 48}px">${keys.map((k, i) => `<span>${(keys.length - 1 - i) % every === 0 ? label(k, i) : ''}</span>`).join('')}</div>
-    <details><summary>Show as table</summary><table><tr><th>${daily ? 'Day' : 'Month'}</th><th>${esc(A)}</th><th>${esc(B)}</th><th>Total</th></tr>${per.slice().reverse().filter(p => p.a + p.b > 0).map(p => `<tr><td>${p.k}</td><td>${money(p.a)}</td><td>${money(p.b)}</td><td>${money(p.a + p.b)}</td></tr>`).join('')}</table></details>
+    <details><summary>Show as table</summary><table><tr><th>${daily ? 'Day' : 'Month'}</th><th>${esc(A)}</th><th>${esc(B)}</th><th>Total</th></tr>${per.slice().reverse().filter(p => p.a + p.b > 0).map(p => `<tr${colSpec(p)}><td>${p.k}</td><td>${money(p.a)}</td><td>${money(p.b)}</td><td>${money(p.a + p.b)}</td></tr>`).join('')}</table></details>
   </section>`;
 
   // By category, biggest first; tail folded into one row.
   const byCat = {};
   list.forEach(i => byCat[i.category] = (byCat[i.category] || 0) + i.amount);
   let cats = Object.entries(byCat).sort((x, y) => y[1] - x[1]);
-  if (cats.length > 8) { const rest = cats.slice(7); cats = cats.slice(0, 7).concat([[`${rest.length} others`, sumBy(rest, c => c[1])]]); }
-  const catCard = `<section class="card"><h2>Where the money goes</h2>${cats.map(([c, v]) =>
-    `<div class="hb" data-tip="${esc(c)}: ${money(v)} (${pct(v, total)}%)"><span class="name">${esc(c)}</span><div class="track"><div class="fill" style="width:${v / cats[0][1] * 100}%"></div></div><span class="val">${short(v)}<small>${pct(v, total)}%</small></span></div>`).join('')}</section>`;
+  if (cats.length > 8) { const rest = cats.slice(7); cats = cats.slice(0, 7).concat([[`${rest.length} others`, sumBy(rest, c => c[1]), rest.map(c => c[0])]]); }
+  const catCard = `<section class="card"><h2>Where the money goes</h2>${cats.map(([c, v, folded]) =>
+    `<div class="hb" data-tip="${esc(c)}: ${money(v)} (${pct(v, total)}%)"${drill(folded
+      ? { title: 'Other categories', items: list.filter(i => folded.includes(i.category)), by: 'category' }
+      : { title: c, items: list.filter(i => i.category === c), by: 'description' })}><span class="name">${esc(c)}</span><div class="track"><div class="fill" style="width:${v / cats[0][1] * 100}%"></div></div><span class="val">${short(v)}<small>${pct(v, total)}%</small></span></div>`).join('')}</section>`;
 
   // Who paid what.
   const pa = sumBy(list.filter(i => i.person === A), i => i.amount), pb = total - pa;
   const split = `<section class="card"><h2>Who pays more</h2>
-    <div class="split"><i style="flex:${pa || .001};background:var(--p1)"></i><i style="flex:${pb || .001};background:var(--p2)"></i></div>
-    <div class="splitl"><span><b style="color:var(--p1)">●</b> ${esc(A)} ${money(pa)} (${pct(pa, total)}%)</span><span><b style="color:var(--p2)">●</b> ${esc(B)} ${money(pb)} (${pct(pb, total)}%)</span></div>
+    <div class="split"><i style="flex:${pa || .001};background:var(--p1)"${personSpec(A, itemsA)}></i><i style="flex:${pb || .001};background:var(--p2)"${personSpec(B, itemsB)}></i></div>
+    <div class="splitl"><span${personSpec(A, itemsA)}><b style="color:var(--p1)">●</b> ${esc(A)} ${money(pa)} (${pct(pa, total)}%)</span><span${personSpec(B, itemsB)}><b style="color:var(--p2)">●</b> ${esc(B)} ${money(pb)} (${pct(pb, total)}%)</span></div>
     <p class="note">${pa === pb ? 'Perfectly even.' : `${esc(pa > pb ? A : B)} has covered ${money(Math.abs(pa - pb))} more than the other.`}</p></section>`;
 
   // Busiest weekday (Monday first).
-  const wd = [0, 0, 0, 0, 0, 0, 0];
-  list.forEach(i => wd[(new Date(i.date + 'T12:00:00').getDay() + 6) % 7] += i.amount);
-  const maxW = Math.max(...wd, 1), DN = ['M', 'T', 'W', 'T', 'F', 'S', 'S'], DF = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const wd = [0, 0, 0, 0, 0, 0, 0], wdItems = [[], [], [], [], [], [], []];
+  list.forEach(i => { const k = weekdayOf(i); wd[k] += i.amount; wdItems[k].push(i); });
+  const maxW = Math.max(...wd, 1), DN = ['M', 'T', 'W', 'T', 'F', 'S', 'S'], DF = DAYS_FULL;
   const busiest = wd.indexOf(maxW);
   const week = `<section class="card"><h2>Spending by weekday</h2><div class="wk">${wd.map((v, k) =>
-    `<div data-tip="${DF[k]}: ${money(v)}"><i style="height:${Math.round(v / maxW * 80)}px"></i>${DN[k]}</div>`).join('')}</div>
+    `<div data-tip="${DF[k]}: ${money(v)}"${drill({ title: DF[k] + 's', items: wdItems[k], by: 'category' })}><i style="height:${Math.round(v / maxW * 80)}px"></i>${DN[k]}</div>`).join('')}</div>
     <p class="note">${DF[busiest]} is your biggest spending day.</p></section>`;
 
   // Places / things you keep paying for.
   const freq = {};
-  list.forEach(i => { const k = (i.description || '').trim().toLowerCase(); if (k) { const f = freq[k] || (freq[k] = { n: 0, t: 0, name: i.description.trim() }); f.n++; f.t += i.amount; } });
+  list.forEach(i => { const k = (i.description || '').trim().toLowerCase(); if (k) { const f = freq[k] || (freq[k] = { n: 0, t: 0, name: i.description.trim(), items: [] }); f.n++; f.t += i.amount; f.items.push(i); } });
   const top = Object.values(freq).filter(f => f.n >= 2).sort((x, y) => y.n - x.n || y.t - x.t).slice(0, 5);
   const topCard = top.length ? `<section class="card"><h2>Most frequent</h2>${top.map(f =>
-    `<div class="row"><div class="main"><div>${esc(f.name)}</div><div class="meta">${f.n} payments</div></div><div class="amt">${money(f.t)}</div></div>`).join('')}</section>` : '';
+    `<div class="row"${drill({ title: f.name, items: f.items })}><div class="main"><div>${esc(f.name)}</div><div class="meta">${f.n} payments</div></div><div class="amt">${money(f.t)}</div><span class="chev">›</span></div>`).join('')}</section>` : '';
 
-  $('insights').innerHTML = tiles + monthly + catCard + split + week + topCard;
+  const hint = store.get('drilled', '') ? '' : '<p class="hint">Tap any tile, bar, row or chart segment to see the payments behind it.</p>';
+  $('insights').innerHTML = hint + tiles + monthly + catCard + split + week + topCard;
 }
 $('chips').onclick = e => { const r = e.target.dataset.r; if (r) { range = r; store.set('range', r); renderInsights(); } };
+
+/* ---------- drill-down sheet ----------
+   Tapping anything in Insights opens a sheet with the payments behind it. The sheet can break those
+   payments down by another dimension (category, description, person, month/day, weekday, size), and
+   tapping a group drills one level deeper. Back (‹) goes up a level. */
+let DRILL = [], stack = [], groups = [], lastFocus = null;
+const DAYS_FULL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const weekdayOf = i => (new Date(i.date + 'T12:00:00').getDay() + 6) % 7;     // Monday = 0
+const SIZE_CUTS = [10, 25, 50, 100, 250];
+const sizeOf = a => SIZE_CUTS.filter(c => a >= c).length;
+const sizeName = k => { const n = +k; return n === 0 ? 'Under ' + short(SIZE_CUTS[0]) : n === SIZE_CUTS.length ? short(SIZE_CUTS[n - 1]) + ' and over' : short(SIZE_CUTS[n - 1]) + ' – ' + short(SIZE_CUTS[n]); };
+const monthName = k => MONTHS[+k.slice(5, 7) - 1] + ' ' + k.slice(0, 4);
+const DIMS = {
+  category:    { label: 'Category',    key: i => i.category,                                 name: k => k },
+  description: { label: 'Description', key: i => (i.description || '').trim().toLowerCase(), name: (k, g) => k ? g[0].description.trim() : '(no description)' },
+  person:      { label: 'Person',      key: i => i.person,                                   name: k => k },
+  month:       { label: 'Month',       key: i => i.date.slice(0, 7),                         name: monthName, order: 'desc' },
+  day:         { label: 'Day',         key: i => i.date,                                     name: k => +k.slice(8) + ' ' + MONTHS[+k.slice(5, 7) - 1], order: 'desc' },
+  weekday:     { label: 'Weekday',     key: i => String(weekdayOf(i)),                       name: k => DAYS_FULL[+k], order: 'asc' },
+  size:        { label: 'Size',        key: i => String(sizeOf(i.amount)),                   name: sizeName, order: 'asc' },
+};
+const distinct = (items, dim) => new Set(items.map(DIMS[dim].key)).size;
+// Dimensions worth offering for these payments: more than one value. "Day" only when everything is in one month.
+const dimsFor = items => { const months = distinct(items, 'month'); return Object.keys(DIMS).filter(d => distinct(items, d) > 1 && (d !== 'day' || months === 1)); };
+// Default breakdown for a drilled-in group: the first dimension that actually splits it into fewer groups than payments.
+const nextBy = items => ['category', 'description', 'person'].find(d => { const n = distinct(items, d); return n > 1 && n < items.length; }) || 'list';
+
+function groupItems(items, dim) {
+  const D = DIMS[dim], m = new Map();
+  items.forEach(i => { const k = D.key(i); if (!m.has(k)) m.set(k, []); m.get(k).push(i); });
+  const rows = [...m].map(([k, g]) => ({ k, g, name: D.name(k, g), total: sumBy(g, i => i.amount) }));
+  return rows.sort(D.order === 'asc' ? (x, y) => x.k < y.k ? -1 : 1 : D.order === 'desc' ? (x, y) => x.k < y.k ? 1 : -1 : (x, y) => y.total - x.total);
+}
+
+function openDetail(spec) {
+  store.set('drilled', '1');
+  const by = spec.by === 'list' || (spec.by && distinct(spec.items, spec.by) > 1) ? spec.by : nextBy(spec.items);
+  stack = [Object.assign({ sort: 'date' }, spec, { by, limit: 100 })];
+  lastFocus = document.activeElement;
+  $('sheet').hidden = $('dscrim').hidden = false;
+  document.body.style.overflow = 'hidden';
+  renderSheet(true);
+  $('sclose').focus();
+}
+function closeSheet() {
+  if ($('sheet').hidden) return;
+  stack = [];
+  $('sheet').hidden = $('dscrim').hidden = true;
+  document.body.style.overflow = '';
+  if (lastFocus && lastFocus.isConnected && lastFocus.focus) lastFocus.focus();
+}
+
+function renderSheet(toTop) {
+  const v = stack[stack.length - 1], items = v.items, total = sumBy(items, i => i.amount);
+  const trail = stack.slice(0, -1).map(s => s.title).join(' › ');
+  $('sheetTitle').textContent = v.title;
+  $('sheetSub').textContent = trail ? trail + ' · ' + v.period : v.period;
+  $('sback').hidden = stack.length < 2;
+
+  const dims = dimsFor(items);
+  if (v.by !== 'list' && !dims.includes(v.by)) dims.push(v.by);
+  let html = `<div class="dsum"><div><b>${money(total)}</b><span>total</span></div><div><b>${items.length}</b><span>${items.length === 1 ? 'payment' : 'payments'}</span></div><div><b>${money(total / items.length)}</b><span>average</span></div></div>`;
+  if (v.note) html += `<p class="note">${esc(v.note)}</p>`;
+  if (dims.length) html += `<h3>Break down by</h3><div class="chips">${['list'].concat(dims).map(d => `<button data-g="${d}" class="${d === v.by ? 'on' : ''}">${d === 'list' ? 'List only' : DIMS[d].label}</button>`).join('')}</div>`;
+
+  groups = v.by === 'list' ? [] : groupItems(items, v.by);
+  if (groups.length) {
+    const max = Math.max(...groups.map(g => g.total), 1), byPerson = v.by === 'person';
+    html += '<div style="margin-top:8px">' + groups.map((g, gi) => {
+      const open = g.g.length > 1;                       // a single payment has nothing to drill into
+      const col = byPerson ? `;background:var(${g.name === state.people[0] ? '--p1' : '--p2'})` : '';
+      return `<div class="hb${open ? '' : ' flat'}"${open ? ` data-gi="${gi}" role="button" tabindex="0"` : ''}><span class="name">${esc(g.name)}<small>×${g.g.length}</small></span><div class="track"><div class="fill" style="width:${g.total / max * 100}%${col}"></div></div><span class="val">${short(g.total)}<small>${pct(g.total, total)}%</small></span></div>`;
+    }).join('') + '</div>';
+  }
+
+  const rows = items.slice().sort(v.sort === 'amount' ? (x, y) => y.amount - x.amount : (x, y) => y.date < x.date ? -1 : y.date > x.date ? 1 : 0);
+  html += `<h3>Payments</h3>` + rows.slice(0, v.limit).map(i =>
+    `<div class="row"><div class="main"><div>${esc(i.description) || esc(i.category)}</div><div class="meta">${esc(i.category)} · ${esc(i.person)} · ${esc(i.date)}</div></div><div class="amt">${money(i.amount)}</div></div>`).join('');
+  if (rows.length > v.limit) html += '<button class="link" id="dmore">Show more</button>';
+  $('sbody').innerHTML = html;
+  if (toTop) $('sbody').scrollTop = 0;
+}
+
+$('sbody').onclick = e => {
+  const v = stack[stack.length - 1];
+  if (!v) return;
+  const chip = e.target.closest('[data-g]');
+  if (chip) { v.by = chip.dataset.g; renderSheet(); return; }
+  const row = e.target.closest('[data-gi]');
+  if (row) {
+    const g = groups[+row.dataset.gi];
+    stack.push({ title: g.name, items: g.g, by: nextBy(g.g), sort: v.sort, period: v.period, limit: 100 });
+    renderSheet(true);
+    return;
+  }
+  if (e.target.id === 'dmore') { v.limit += 100; renderSheet(); }
+};
+$('sback').onclick = () => { stack.pop(); renderSheet(true); };
+$('sclose').onclick = $('dscrim').onclick = closeSheet;
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeSheet(); return; }
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[data-d],[data-gi]')) { e.preventDefault(); e.target.click(); }
+});
 
 /* ---------- tooltips (hover on desktop, tap on phones) ---------- */
 function showTip(el, x, y) {
@@ -429,6 +584,8 @@ function showTip(el, x, y) {
 document.addEventListener('pointerover', e => { const el = e.target.closest('[data-tip]'); if (el && e.pointerType === 'mouse') showTip(el, e.clientX, e.clientY); });
 document.addEventListener('pointerout', e => { if (e.pointerType === 'mouse') $('tip').hidden = true; });
 document.addEventListener('click', e => {
+  const dd = e.target.closest('[data-d]');             // tappable insight: open its breakdown instead of a tooltip
+  if (dd && DRILL[+dd.dataset.d]) { $('tip').hidden = true; openDetail(DRILL[+dd.dataset.d]); return; }
   const el = e.target.closest('[data-tip]');
   if (el) showTip(el, e.clientX, e.clientY); else $('tip').hidden = true;
 });
