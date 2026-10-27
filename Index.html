@@ -118,7 +118,6 @@
   .sbody h3 { margin:16px 0 4px; font-size:.85rem; font-weight:600; color:var(--muted); }
   .sbody .hb .name small { color:var(--muted); margin-left:4px; }
   .sbody .row { padding:9px 0; }
-  .hb.flat { cursor:default; }
 </style>
 </head>
 <body>
@@ -537,9 +536,8 @@ function renderSheet(toTop) {
   if (groups.length) {
     const max = Math.max(...groups.map(g => g.total), 1), byPerson = v.by === 'person';
     html += '<div style="margin-top:8px">' + groups.map((g, gi) => {
-      const open = g.g.length > 1;                       // a single payment has nothing to drill into
       const col = byPerson ? `;background:var(${g.name === state.people[0] ? '--p1' : '--p2'})` : '';
-      return `<div class="hb${open ? '' : ' flat'}"${open ? ` data-gi="${gi}" role="button" tabindex="0"` : ''}><span class="name">${esc(g.name)}<small>×${g.g.length}</small></span><div class="track"><div class="fill" style="width:${g.total / max * 100}%${col}"></div></div><span class="val">${short(g.total)}<small>${pct(g.total, total)}%</small></span></div>`;
+      return `<div class="hb" data-gi="${gi}" role="button" tabindex="0"><span class="name">${esc(g.name)}<small>×${g.g.length}</small></span><div class="track"><div class="fill" style="width:${g.total / max * 100}%${col}"></div></div><span class="val">${short(g.total)}<small>${pct(g.total, total)}%</small></span></div>`;
     }).join('') + '</div>';
   }
 
