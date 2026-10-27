@@ -16,7 +16,7 @@
   }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--text); font:16px/1.4 -apple-system,system-ui,Roboto,sans-serif; }
-  main { max-width:520px; margin:0 auto; display:grid; gap:14px; padding:14px 16px 40px; }
+  main { max-width:520px; margin:0 auto; display:grid; gap:14px; padding:14px 16px calc(40px + env(safe-area-inset-bottom)); }
   [hidden] { display:none !important; }
 
   /* top bar + menu */
@@ -65,8 +65,8 @@
   .tiles { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .tile { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; min-width:0; }
   .tile span { display:block; color:var(--muted); font-size:.8rem; }
-  .tile b { display:block; font-size:1.45rem; margin:2px 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .tile small { color:var(--muted); font-size:.8rem; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tile b { display:block; font-size:clamp(1.15rem,5.8vw,1.45rem); margin:2px 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tile small { color:var(--muted); font-size:.8rem; display:block; overflow-wrap:anywhere; }
   .legend { display:flex; gap:16px; margin:-4px 0 10px; font-size:.85rem; color:var(--muted); }
   .legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; vertical-align:-1px; }
   .cols { display:flex; align-items:flex-end; gap:3px; height:170px; border-bottom:1px solid var(--line); position:relative; }
@@ -76,8 +76,8 @@
   .axis { position:absolute; top:-2px; left:0; font-size:.7rem; color:var(--muted); }
   .mlabels { display:flex; gap:3px; margin-top:4px; }
   .mlabels span { flex:1; min-width:0; text-align:center; font-size:.68rem; color:var(--muted); white-space:nowrap; overflow:visible; }
-  .hb { display:grid; grid-template-columns:minmax(90px,32%) 1fr 84px; gap:8px; align-items:center; padding:5px 0; font-size:.9rem; cursor:pointer; }
-  .hb .name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .hb { display:grid; grid-template-columns:minmax(106px,36%) 1fr 80px; gap:8px; align-items:center; padding:5px 0; font-size:.9rem; cursor:pointer; }
+  .hb .name { overflow-wrap:break-word; line-height:1.2; }
   .hb .track { background:var(--track); border-radius:0 4px 4px 0; height:14px; }
   .hb .fill { background:var(--bar); height:100%; border-radius:0 4px 4px 0; min-width:2px; }
   .hb .val { text-align:right; font-variant-numeric:tabular-nums; }
@@ -85,7 +85,8 @@
   .split { display:flex; gap:2px; height:22px; margin:6px 0 10px; }
   .split i { display:block; height:100%; }
   .split i:first-child { border-radius:6px 0 0 6px; } .split i:last-child { border-radius:0 6px 6px 0; }
-  .splitl { display:flex; justify-content:space-between; font-size:.9rem; }
+  .splitl { display:flex; justify-content:space-between; gap:12px; font-size:.9rem; line-height:1.3; }
+  .splitl span:last-child { text-align:right; }
   .wk { display:flex; align-items:flex-end; gap:6px; height:110px; }
   .wk div { flex:1; display:flex; flex-direction:column; justify-content:flex-end; height:100%; text-align:center; font-size:.72rem; color:var(--muted); cursor:pointer; }
   .wk i { display:block; background:var(--bar); border-radius:4px 4px 0 0; margin-bottom:4px; }
@@ -104,7 +105,7 @@
   .legend [data-d], .splitl [data-d] { padding:2px 0; }
   .chev { color:var(--muted); font-size:1.3rem; line-height:1; padding-left:2px; }
   .dscrim { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:11; }
-  .sheet { position:fixed; left:50%; bottom:0; transform:translateX(-50%); width:min(560px,100%); max-height:88vh; background:var(--card); border:1px solid var(--line); border-bottom:0; border-radius:18px 18px 0 0; z-index:12; display:flex; flex-direction:column; box-shadow:0 -6px 30px rgba(0,0,0,.3); }
+  .sheet { position:fixed; left:50%; bottom:0; transform:translateX(-50%); width:min(560px,100%); max-height:88vh; max-height:88dvh; background:var(--card); border:1px solid var(--line); border-bottom:0; border-radius:18px 18px 0 0; z-index:12; display:flex; flex-direction:column; box-shadow:0 -6px 30px rgba(0,0,0,.3); }
   .sheethead { display:flex; align-items:center; gap:2px; padding:8px 6px 8px 8px; border-bottom:1px solid var(--line); }
   .sheethead .ttl { flex:1; min-width:0; padding:0 6px; }
   .sheethead .ttl b { display:block; font-size:1.05rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -116,7 +117,7 @@
   .sbody .note { text-align:center; margin:8px 0 0; }
   .sbody .chips { margin-top:14px; }
   .sbody h3 { margin:16px 0 4px; font-size:.85rem; font-weight:600; color:var(--muted); }
-  .sbody .hb .name small { color:var(--muted); margin-left:4px; }
+  .sbody .hb .name small { color:var(--muted); margin-left:4px; white-space:nowrap; }
   .sbody .row { padding:9px 0; }
 </style>
 </head>
@@ -444,7 +445,7 @@ function renderInsights() {
   const pa = sumBy(list.filter(i => i.person === A), i => i.amount), pb = total - pa;
   const split = `<section class="card"><h2>Who pays more</h2>
     <div class="split"><i style="flex:${pa || .001};background:var(--p1)"${personSpec(A, itemsA)}></i><i style="flex:${pb || .001};background:var(--p2)"${personSpec(B, itemsB)}></i></div>
-    <div class="splitl"><span${personSpec(A, itemsA)}><b style="color:var(--p1)">●</b> ${esc(A)} ${money(pa)} (${pct(pa, total)}%)</span><span${personSpec(B, itemsB)}><b style="color:var(--p2)">●</b> ${esc(B)} ${money(pb)} (${pct(pb, total)}%)</span></div>
+    <div class="splitl"><span${personSpec(A, itemsA)}><b style="color:var(--p1)">●</b> ${esc(A)}<br>${money(pa)} (${pct(pa, total)}%)</span><span${personSpec(B, itemsB)}><b style="color:var(--p2)">●</b> ${esc(B)}<br>${money(pb)} (${pct(pb, total)}%)</span></div>
     <p class="note">${pa === pb ? 'Perfectly even.' : `${esc(pa > pb ? A : B)} has covered ${money(Math.abs(pa - pb))} more than the other.`}</p></section>`;
 
   // Busiest weekday (Monday first).
