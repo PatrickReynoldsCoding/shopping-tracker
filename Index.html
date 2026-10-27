@@ -97,6 +97,13 @@
   #tip { position:fixed; z-index:20; pointer-events:none; background:#1c1e21; color:#fff; font-size:.8rem; padding:6px 9px; border-radius:8px; max-width:220px; box-shadow:0 2px 10px rgba(0,0,0,.3); }
   .search { margin-bottom:6px; }
 
+  /* amount box: sums like =20-10 */
+  .amtrow { display:flex; gap:8px; }
+  .amtrow input { flex:1; min-width:0; }
+  .calcbtn { flex:none; width:48px; font-size:1.25rem; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--text); }
+  .calcprev { margin-top:6px; font-size:.9rem; color:var(--muted); }
+  .calcprev b { color:var(--text); }
+
   /* drill-down: anything with data-d opens the detail sheet */
   [data-d] { cursor:pointer; -webkit-tap-highlight-color:transparent; }
   [data-d]:active { opacity:.7; }
@@ -164,7 +171,8 @@
         <label>Who paid?</label>
         <div class="seg" id="who"></div>
         <label for="amount">Amount</label>
-        <input id="amount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00">
+        <div class="amtrow"><input id="amount" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00 or =20-5"><button type="button" class="calcbtn" id="calc" aria-label="Type a sum, for example =20-5">=</button></div>
+        <div class="calcprev" id="amtPrev" hidden></div>
         <label for="cat">Category</label>
         <select id="cat"></select>
         <label for="desc">Description</label>
@@ -621,12 +629,64 @@ $('cat').onchange = () => {
 };
 $('defWho').onchange = () => { store.set('defWho', $('defWho').value); who = $('defWho').value; };
 $('defCat').onchange = () => { store.set('defCat', $('defCat').value); $('cat').value = $('defCat').value; };
+
+/* ---------- amount box: plain numbers or sums like =20-10 ----------
+   Supports + - * / (also × ÷ x), brackets and %, e.g. =12.50*3, =(20+5)/2, =80-10%. Parsed by hand, never eval'd. */
+function calc(src) {
+  let s = String(src == null ? '' : src).trim().replace(/^=/, '');
+  if (state && state.currency) s = s.split(state.currency).join('');
+  if (/[\d.)%]\s+[\d.(]/.test(s)) return null;          // "20 10" is a missing operator, not 2010
+  s = s.replace(/[×xX]/g, '*').replace(/÷/g, '/').replace(/[−–]/g, '-').replace(/[,\s]/g, '');
+  if (!s) return null;
+  let p = 0;
+  const bad = () => { throw new Error('bad'); };
+  const num = () => { const m = /^(\d+\.?\d*|\.\d+)/.exec(s.slice(p)); if (!m) bad(); p += m[0].length; return parseFloat(m[0]); };
+  const atom = () => {
+    let v;
+    if (s[p] === '(') { p++; v = expr(); if (s[p] !== ')') bad(); p++; } else v = num();
+    while (s[p] === '%') { p++; v /= 100; }
+    return v;
+  };
+  const unary = () => s[p] === '-' ? (p++, -unary()) : s[p] === '+' ? (p++, unary()) : atom();
+  const term = () => {
+    let v = unary();
+    while (s[p] === '*' || s[p] === '/') { const o = s[p++], r = unary(); if (o === '/' && r === 0) bad(); v = o === '*' ? v * r : v / r; }
+    return v;
+  };
+  const expr = () => {
+    let v = term();
+    while (s[p] === '+' || s[p] === '-') { const o = s[p++], r = term(); v = o === '+' ? v + r : v - r; }
+    return v;
+  };
+  try { const v = expr(); return p === s.length && isFinite(v) ? Math.round(v * 100) / 100 : null; } catch (e) { return null; }
+}
+function updateAmountPreview() {
+  const v = $('amount').value, el = $('amtPrev');
+  const plain = /^\s*[\d.]*\s*$/.test(v);               // a normal number needs no preview
+  el.hidden = plain;
+  if (plain) return;
+  const r = calc(v);
+  el.innerHTML = r == null ? 'Can’t read that sum yet' : `= <b>${money(r)}</b>`;
+}
+$('amount').oninput = updateAmountPreview;
+// Phone number pads have no = + - × ÷ keys: this key adds "=" and switches to the full keyboard.
+$('calc').onclick = () => {
+  const a = $('amount');
+  if (!/^\s*=/.test(a.value)) a.value = '=' + a.value;
+  a.inputMode = 'text';
+  a.blur(); a.focus();
+  try { a.setSelectionRange(a.value.length, a.value.length); } catch (e) {}
+  updateAmountPreview();
+};
+
 $('add').onclick = async () => {
   if ($('cat').value === NEW_CAT) { $('err').textContent = 'Pick a category'; return; }
+  const amt = calc($('amount').value);
+  if (amt == null) { $('err').textContent = 'Enter an amount, e.g. 12.50 or =20-5'; return; }
   $('add').disabled = true;
   const cat = $('cat').value;
-  const ok = await act('addExpense', who, $('amount').value, cat, $('desc').value, $('date').value);
-  if (ok) { $('amount').value = ''; $('desc').value = ''; $('cat').value = defaultCat(); }
+  const ok = await act('addExpense', who, amt, cat, $('desc').value, $('date').value);
+  if (ok) { $('amount').value = ''; $('amount').inputMode = 'decimal'; updateAmountPreview(); $('desc').value = ''; $('cat').value = defaultCat(); }
   $('add').disabled = false;
 };
 $('list').onclick = e => {

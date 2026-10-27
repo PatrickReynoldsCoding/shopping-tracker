@@ -13,6 +13,7 @@ A tiny app for two people to track shared spending and see who owes whom. It spl
 
 - Works on Android and iOS (it's a web app you add to your home screen)
 - Your data lives in **your own Google Sheet**, so there is nothing to host and nothing to pay for
+- The amount box does basic maths like a spreadsheet: type `=20-10`, `=12.50*3` or `=(20+5)/2` and the result shows as you type (the **=** key switches phones to the full keyboard)
 - Everyone uses their own Google account and sets their own names, currency and categories
 - **Insights** show spending by month (or day), by category, who pays more, busiest weekday and your most frequent payments, over this month, 3 months, 12 months or all time
 - **Everything in Insights is tappable.** Tiles, chart bars and segments, legend, category rows, weekday bars and frequent payments all open a breakdown of the payments behind them. From there you can regroup by category, description, person, month/day, weekday or payment size, and tap a group to drill in further
