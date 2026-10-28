@@ -1,1 +1,5 @@
 dev/preview.html
+node_modules/
+.clasp.json
+.deployment-id
+.DS_Store

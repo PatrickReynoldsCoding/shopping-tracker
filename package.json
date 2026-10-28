@@ -1,0 +1,19 @@
+{
+  "name": "shopping-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Shared shopping split for two people. Google Sheets + Apps Script.",
+  "scripts": {
+    "login": "mkdir -p \"$HOME/.config/clasp/shopping-tracker\" && clasp -A \"$HOME/.config/clasp/shopping-tracker\" login",
+    "whoami": "clasp -A \"$HOME/.config/clasp/shopping-tracker\" show-authorized-user",
+    "status": "clasp -A \"$HOME/.config/clasp/shopping-tracker\" show-file-status",
+    "pull": "clasp -A \"$HOME/.config/clasp/shopping-tracker\" pull",
+    "push": "clasp -A \"$HOME/.config/clasp/shopping-tracker\" push --force",
+    "deployments": "clasp -A \"$HOME/.config/clasp/shopping-tracker\" list-deployments",
+    "deploy": "npm run push && clasp -A \"$HOME/.config/clasp/shopping-tracker\" update-deployment \"$(cat .deployment-id)\"",
+    "preview": "node dev/build-preview.js"
+  },
+  "devDependencies": {
+    "@google/clasp": "3.4.1"
+  }
+}

@@ -1,0 +1,6 @@
+# Only the app goes to Apps Script. dev/ holds a fake Google runtime for the local preview,
+# which would break the live app if it were pushed.
+**/**
+!Code.gs
+!Index.html
+!appsscript.json

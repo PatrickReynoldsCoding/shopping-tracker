@@ -42,6 +42,8 @@ Also on each phone, in the **Defaults** card, you can pick a default person and 
 
 Paste the new code, then **Deploy → Manage deployments → ✏️ → Version: New version → Deploy**. The URL stays the same.
 
+Or deploy from a clone of this repo with [clasp](https://github.com/google/clasp): after a one-time setup, `npm run deploy -- -d "What changed"` pushes the code and updates the same deployment. The setup is in [AGENTS.md](AGENTS.md#deploying-with-clasp-any-machine).
+
 ## Privacy
 
 The app runs as whoever opens it and only reads and writes the sheet it is attached to. Only people you share the sheet with can use it; having the link is not enough. There are no servers or analytics.
